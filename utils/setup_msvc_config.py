@@ -56,7 +56,14 @@ def getCLVersion(cl):
 		return l[-3], l[-1]
 
 class MSVCConfig:
-	pass
+	def write(self, file):
+		file.write(
+			f"compiler.{self.id}.exe={self.cl}\n"
+			f"compiler.{self.id}.includePath={self.include_paths}\n"
+			f"compiler.{self.id}.libPath={self.lib_paths}\n"
+			f"compiler.{self.id}.demangler={self.undname}\n"
+			f"compiler.{self.id}.name={self.name}\n"
+		)
 
 def _iterate_compiler_config_echo(f):
 	lines = _iterate_lines(f)
@@ -86,19 +93,19 @@ def detectCompilerConfig(vcvarsall, platform):
 		cfg.lib_paths = echo[2]
 		cfg.undname = echo[3]
 		cfg.version, cfg.platform = getCLVersion(cfg.cl)
-		cfg.name = f"msvc_{cfg.version.replace('.', '_')}_{cfg.platform}"
-		cfg.pretty_name = f"MSVC {cfg.version} {cfg.platform}"
+		cfg.id = f"msvc_{cfg.version.replace('.', '_')}_{cfg.platform}"
+		cfg.name = f"MSVC {cfg.version} {cfg.platform}"
 
 		return cfg
 
 
 def detectMSVCConfigs(platforms):
 	for props in getVSInstances():
-		pretty_name = props["displayName"]
+		name = props["displayName"]
 		version = props["installationVersion"]
 		inst_path = Path(props["installationPath"])
 
-		print(f"found {pretty_name} ({version}) in {inst_path}")
+		print(f"found {name} ({version}) in {inst_path}")
 
 		vcvarsall = inst_path/"VC"/"Auxiliary"/"Build"/"vcvarsall.bat"
 
@@ -113,12 +120,7 @@ def main(args):
 	# with open(_this_dir/"c++.local.properties", "wt") as file:
 
 	for cfg in detectMSVCConfigs(args.platform):
-		print("found", cfg.pretty_name)
-		# print(f"compiler.{cfg.name}.exe={cfg.cl}")
-		# print(f"compiler.{cfg.name}.includePath={cfg.include_paths}")
-		# print(f"compiler.{cfg.name}.libPath={cfg.lib_paths}")
-		# print(f"compiler.{cfg.name}.demangler={cfg.undname}")
-		# print(f"compiler.{cfg.name}.name={cfg.pretty_name}")
+		print("found", cfg.name)
 
 
 if __name__ == "__main__":
