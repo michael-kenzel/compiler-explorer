@@ -20,8 +20,12 @@ def vswhere(*args, **kwargs):
 	vs_where_path = Path(os.environ["ProgramFiles(x86)"])/"Microsoft Visual Studio"/"Installer"/"vswhere"
 	return subprocess.Popen([str(vs_where_path), *args], **kwargs)
 
-def getVSInstances():
-	with vswhere("-nologo", "-requires", "Microsoft.VisualStudio.Component.VC.Tools.x86.x64", "-sort", stdout=subprocess.PIPE) as p:
+def getVSInstances(*, prerelease=True):
+	args = ["-nologo", "-requires", "Microsoft.VisualStudio.Component.VC.Tools.x86.x64", "-sort"]
+	if prerelease:
+		args.append("-prerelease")
+
+	with vswhere(*args, stdout=subprocess.PIPE) as p:
 		props = [{}]
 		for l in _iterate_lines(p.stdout):
 			if l:
@@ -99,8 +103,8 @@ def detectCompilerConfig(vcvarsall, platform):
 		return cfg
 
 
-def detectMSVCConfigs(platforms):
-	for props in getVSInstances():
+def detectMSVCConfigs(platforms, *, prerelease=True):
+	for props in getVSInstances(prerelease=prerelease):
 		name = props["displayName"]
 		version = props["installationVersion"]
 		inst_path = Path(props["installationPath"])
@@ -119,11 +123,12 @@ def main(args):
 
 	# with open(_this_dir/"c++.local.properties", "wt") as file:
 
-	for cfg in detectMSVCConfigs(args.platform):
+	for cfg in detectMSVCConfigs(args.platform, prerelease=args.prerelease):
 		print("found", cfg.name)
 
 
 if __name__ == "__main__":
 	argparser = argparse.ArgumentParser()
 	argparser.add_argument("-platform", "--platform", action="append")
+	argparser.add_argument("-nopreview", "--no-prerelease", action="store_false", dest="prerelease")
 	main(argparser.parse_args())
