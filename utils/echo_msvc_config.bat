@@ -6,5 +6,6 @@ REM bits of information from the environment set up by vcvarsall.bat
 echo --{
 where cl
 echo %INCLUDE%
+echo %LIB%
 where undname
 echo }--

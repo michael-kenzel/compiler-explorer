@@ -77,13 +77,14 @@ def detectCompilerConfig(vcvarsall, platform):
 		if p.wait() != 0:
 			raise Exception("echo_msvc_config failed")
 
-		if len(echo) != 3:
+		if len(echo) != 4:
 			raise Exception("failed to detect compiler config")
 
 		cfg = MSVCConfig()
 		cfg.cl = echo[0]
 		cfg.include_paths = echo[1]
-		cfg.undname = echo[2]
+		cfg.lib_paths = echo[2]
+		cfg.undname = echo[3]
 		cfg.version, cfg.platform = getCLVersion(cfg.cl)
 		cfg.name = f"msvc_{cfg.version.replace('.', '_')}_{cfg.platform}"
 		cfg.pretty_name = f"MSVC {cfg.version} {cfg.platform}"
@@ -115,6 +116,7 @@ def main(args):
 		print("found", cfg.pretty_name)
 		# print(f"compiler.{cfg.name}.exe={cfg.cl}")
 		# print(f"compiler.{cfg.name}.includePath={cfg.include_paths}")
+		# print(f"compiler.{cfg.name}.libPath={cfg.lib_paths}")
 		# print(f"compiler.{cfg.name}.demangler={cfg.undname}")
 		# print(f"compiler.{cfg.name}.name={cfg.pretty_name}")
 
