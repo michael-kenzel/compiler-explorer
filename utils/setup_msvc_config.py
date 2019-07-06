@@ -80,7 +80,7 @@ def _iterate_compiler_config_echo(f):
 		yield l
 	f.read()
 
-def detectCompilerConfig(vcvarsall, platform):
+def _detectCompilerConfig(vcvarsall, platform):
 	echo_msvc_config_path = _this_dir/"echo_msvc_config.bat"
 	with subprocess.Popen(["cmd", "/C", str(vcvarsall), platform, "&&", str(echo_msvc_config_path)], stdout=subprocess.PIPE) as p:
 		echo = [s for s in _iterate_compiler_config_echo(p.stdout)]
@@ -103,28 +103,39 @@ def detectCompilerConfig(vcvarsall, platform):
 		return cfg
 
 
-def detectMSVCConfigs(platforms, *, prerelease=True):
+def detectMSVCConfigs(platforms, *, prerelease=True, verbose=True):
 	for props in getVSInstances(prerelease=prerelease):
 		name = props["displayName"]
 		version = props["installationVersion"]
 		inst_path = Path(props["installationPath"])
 
-		print(f"found {name} ({version}) in {inst_path}")
+		if verbose:
+			print(f"found {name} ({version}) in {inst_path}")
 
 		vcvarsall = inst_path/"VC"/"Auxiliary"/"Build"/"vcvarsall.bat"
 
 		for platform in platforms:
-			yield detectCompilerConfig(vcvarsall, platform)
+			cfg = _detectCompilerConfig(vcvarsall, platform)
+
+			if verbose:
+				print(f"\t{cfg.name}")
+
+			yield cfg
+
+
+def writeConfig(file, platforms, *, prerelease=True):
+	configs = [cfg for cfg in detectMSVCConfigs(platforms, prerelease=prerelease)]
+	# cfg.write(file)
 
 
 def main(args):
 	if not args.platform:
+		# TODO: properly deal with picking the right host compiler version
 		args.platform = ["x86", "amd64"]
 
 	# with open(_this_dir/"c++.local.properties", "wt") as file:
+	writeConfig(sys.stdout, args.platform, prerelease=args.prerelease)
 
-	for cfg in detectMSVCConfigs(args.platform, prerelease=args.prerelease):
-		print("found", cfg.name)
 
 
 if __name__ == "__main__":
