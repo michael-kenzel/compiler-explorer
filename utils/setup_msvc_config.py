@@ -62,11 +62,11 @@ def getCLVersion(cl):
 class MSVCConfig:
 	def write(self, file):
 		file.write(
+			f"compiler.{self.id}.name={self.name}\n"
 			f"compiler.{self.id}.exe={self.cl}\n"
 			f"compiler.{self.id}.includePath={self.include_paths}\n"
 			f"compiler.{self.id}.libPath={self.lib_paths}\n"
 			f"compiler.{self.id}.demangler={self.undname}\n"
-			f"compiler.{self.id}.name={self.name}\n"
 		)
 
 def _iterate_compiler_config_echo(f):
@@ -103,39 +103,66 @@ def _detectCompilerConfig(vcvarsall, platform):
 		return cfg
 
 
-def detectMSVCConfigs(platforms, *, prerelease=True, verbose=True):
-	for props in getVSInstances(prerelease=prerelease):
-		name = props["displayName"]
-		version = props["installationVersion"]
-		inst_path = Path(props["installationPath"])
+def detectMSVCConfigs(instance, platforms, *, verbose=True):
+	name = instance["displayName"]
+	version = instance["installationVersion"]
+	inst_path = Path(instance["installationPath"])
+
+	if verbose:
+		print(f"found {name} ({version}) in {inst_path}")
+
+	vcvarsall = inst_path/"VC"/"Auxiliary"/"Build"/"vcvarsall.bat"
+
+	for platform in platforms:
+		cfg = _detectCompilerConfig(vcvarsall, platform)
 
 		if verbose:
-			print(f"found {name} ({version}) in {inst_path}")
+			print(f"\t{cfg.name}")
 
-		vcvarsall = inst_path/"VC"/"Auxiliary"/"Build"/"vcvarsall.bat"
-
-		for platform in platforms:
-			cfg = _detectCompilerConfig(vcvarsall, platform)
-
-			if verbose:
-				print(f"\t{cfg.name}")
-
-			yield cfg
+		yield cfg
 
 
-def writeConfig(file, platforms, *, prerelease=True):
-	configs = [cfg for cfg in detectMSVCConfigs(platforms, prerelease=prerelease)]
-	# cfg.write(file)
+def generateConfig(file, platforms, *, prerelease=True):
+	instances = getVSInstances(prerelease=prerelease)
+
+	configs = []
+
+	for instance in instances:
+		file.write(f"# {instance['installationName']}\n")
+
+		for cfg in detectMSVCConfigs(instance, platforms):
+			configs.append(cfg)
+			cfg.write(file)
+			file.write('\n')
+
+	file.write("# MSVC target platform groups\n")
+	for platform in platforms:
+		compilers = [cfg.id for cfg in configs if cfg.platform == platform]
+		file.write(f"group.msvc_{platform}.groupName=MSVC {platform}\n")
+		file.write(f"group.msvc_{platform}.compilers={':'.join(compilers)}\n")
+		file.write('\n')
+
+	file.write("# MSVC common properties\n")
+	file.write(f"group.msvc.groupName=MSVC\n")
+	file.write(f"group.msvc.options=-EHsc\n")
+	file.write(f"group.msvc.includeFlag=/I\n")
+	file.write(f"group.msvc.needsMulti=false\n")
+	file.write(f"group.msvc.compilerType=win32-vc\n")
+	file.write(f"group.msvc.compilers={':'.join([f'&msvc_{p}' for p in platforms])}\n")
+	file.write('\n')
+	if configs:
+		file.write(f"defaultCompiler={configs[0].id}\n")
+		file.write('\n')
+	file.write(f"compilers=&msvc\n")
 
 
 def main(args):
 	if not args.platform:
-		# TODO: properly deal with picking the right host compiler version
-		args.platform = ["x86", "amd64"]
+		# TODO: properly deal with picking the right compiler version given the host architecture
+		args.platform = ["x64", "x86"]
 
-	# with open(_this_dir/"c++.local.properties", "wt") as file:
-	writeConfig(sys.stdout, args.platform, prerelease=args.prerelease)
-
+	with open(_this_dir.parent/"etc"/"config"/"c++.local.properties", "wt") as file:
+		generateConfig(file, args.platform, prerelease=args.prerelease)
 
 
 if __name__ == "__main__":
