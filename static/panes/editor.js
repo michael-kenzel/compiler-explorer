@@ -28,14 +28,13 @@ var colour = require('../colour');
 var loadSaveLib = require('../loadSave');
 var FontScale = require('../fontscale');
 var Components = require('../components');
-var monaco = require('../monaco');
+var monaco = require('monaco-editor');
 var options = require('../options');
 var Alert = require('../alert');
 var local = require('../local');
 var ga = require('../analytics');
 require('../modes/cppp-mode');
 require('../modes/d-mode');
-require('../modes/rust-mode');
 require('../modes/ispc-mode');
 require('../modes/llvm-ir-mode');
 require('../modes/haskell-mode');
@@ -281,6 +280,7 @@ Editor.prototype.initButtons = function (state) {
     this.loadSaveButton = this.domRoot.find('.load-save');
     var paneAdderDropdown = this.domRoot.find('.add-pane');
     var addCompilerButton = this.domRoot.find('.btn.add-compiler');
+    var addExecutorButton = this.domRoot.find('.btn.add-executor');
     this.conformanceViewerButton = this.domRoot.find('.btn.conformance');
     var addEditorButton = this.domRoot.find('.btn.add-editor');
 
@@ -293,6 +293,10 @@ Editor.prototype.initButtons = function (state) {
     // bugs e.g. https://github.com/mattgodbolt/compiler-explorer/issues/225
     var getCompilerConfig = _.bind(function () {
         return Components.getCompiler(this.id, this.currentLanguage.id);
+    }, this);
+
+    var getExecutorConfig = _.bind(function () {
+        return Components.getExecutor(this.id, this.currentLanguage.id);
     }, this);
 
     var getConformanceConfig = _.bind(function () {
@@ -310,6 +314,7 @@ Editor.prototype.initButtons = function (state) {
     }, this);
 
     addDragListener(addCompilerButton, getCompilerConfig);
+    addDragListener(addExecutorButton, getExecutorConfig);
     addDragListener(this.conformanceViewerButton, getConformanceConfig);
     addDragListener(addEditorButton, getEditorConfig);
 
@@ -322,6 +327,7 @@ Editor.prototype.initButtons = function (state) {
     }, this);
 
     bindClickEvent(addCompilerButton, getCompilerConfig);
+    bindClickEvent(addExecutorButton, getExecutorConfig);
     bindClickEvent(this.conformanceViewerButton, getConformanceConfig);
     bindClickEvent(addEditorButton, getEditorConfig);
 

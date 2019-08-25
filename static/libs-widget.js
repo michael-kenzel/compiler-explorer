@@ -69,8 +69,9 @@ LibsWidget.prototype.updateAvailableLibs = function () {
 
 LibsWidget.prototype.setNewLangId = function (langId) {
     this.currentLangId = langId;
+    // Clear the dom Root so it gets rebuilt with the new language libraries
+    this.domRoot = null;
     this.updateAvailableLibs();
-
 };
 
 LibsWidget.prototype.lazyDropdownLoad = function () {
@@ -144,6 +145,7 @@ LibsWidget.prototype.lazyDropdownLoad = function () {
 };
 
 LibsWidget.prototype.updateLibsDropdown = function () {
+    this.dropdownButton.popover('dispose');
     this.dropdownButton.popover({
         container: 'body',
         content: _.bind(this.lazyDropdownLoad, this),
@@ -186,11 +188,11 @@ LibsWidget.prototype.listUsedLibs = function () {
 
 LibsWidget.prototype.getLibsInUse = function () {
     var libs = [];
-    _.each(this.availableLibs[this.currentLangId], function (library) {
+    _.each(this.availableLibs[this.currentLangId], function (library, libId) {
         _.each(library.versions, function (version, ver) {
             if (library.versions[ver].used) {
-                // We trust the invariant of only 1 used version at any given time per lib
-                libs.push(library.versions[ver]);
+                var libVer = Object.assign({libId: libId, versionId: ver}, library.versions[ver]);
+                libs.push(libVer);
             }
         });
     });

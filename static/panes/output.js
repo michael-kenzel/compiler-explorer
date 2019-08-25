@@ -114,21 +114,33 @@ Output.prototype.saveState = function () {
     this.container.setState(this.currentState());
 };
 
+Output.prototype.addOutputLines = function (result) {
+    _.each((result.stdout || []).concat(result.stderr || []), function (obj) {
+        var lineNumber = obj.tag ? obj.tag.line : obj.line;
+        var columnNumber = obj.tag ? obj.tag.column : -1;
+        if (obj.text === "") {
+            this.add('<br/>');
+        } else {
+            this.add(this.normalAnsiToHtml.toHtml(obj.text), lineNumber, columnNumber);
+        }
+    }, this);
+};
+
 Output.prototype.onCompileResult = function (id, compiler, result) {
     if (id !== this.compilerId) return;
     if (compiler) this.compilerName = compiler.name;
 
     this.contentRoot.empty();
 
-    _.each((result.stdout || []).concat(result.stderr || []), function (obj) {
-        var lineNumber = obj.tag ? obj.tag.line : obj.line;
-        var columnNumber = obj.tag ? obj.tag.column : -1;
-        this.add(this.normalAnsiToHtml.toHtml(obj.text), lineNumber, columnNumber);
-    }, this);
-
-    this.add("Compiler returned: " + result.code);
-
-    if (result.execResult) {
+    this.addOutputLines(result);
+    if (!result.execResult) {
+        this.add("Compiler returned: " + result.code);
+    } else {
+        this.add("ASM generation compiler returned: " + result.code);
+        this.addOutputLines(result.execResult.buildResult);
+        this.add("Execution build compiler returned: " + result.execResult.buildResult.code);
+    }
+    if (result.execResult && result.execResult.didExecute) {
         this.add("Program returned: " + result.execResult.code);
         if (result.execResult.stderr.length || result.execResult.stdout.length) {
             _.each(result.execResult.stderr, function (obj) {
@@ -167,8 +179,7 @@ Output.prototype.add = function (msg, lineNum, column) {
     var elem = $('<p></p>').appendTo(this.contentRoot);
     if (lineNum) {
         elem.html(
-            $('<a></a>')
-                .prop('href', 'javascript:;')
+            $('<span class="linked-compiler-output-line"></span>')
                 .html(msg)
                 .click(_.bind(function (e) {
                     this.eventHub.emit('editorLinkLine', this.editorId, lineNum, column, true);
@@ -178,7 +189,7 @@ Output.prototype.add = function (msg, lineNum, column) {
                     return false;
                 }, this))
                 .on('mouseover', _.bind(function () {
-                    this.eventHub.emit('editorLinkLine', this.editorId, lineNum,  column, false);
+                    this.eventHub.emit('editorLinkLine', this.editorId, lineNum, column, false);
                 }, this))
         );
     } else {

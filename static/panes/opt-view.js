@@ -24,7 +24,7 @@
 "use strict";
 
 var FontScale = require('../fontscale');
-var monaco = require('../monaco');
+var monaco = require('monaco-editor');
 var _ = require('underscore');
 var $ = require('jquery');
 var ga = require('../analytics');
@@ -38,11 +38,10 @@ function Opt(hub, container, state) {
     this.eventHub = hub.createEventHub();
     this.domRoot = container.getElement();
     this.domRoot.html($('#opt').html());
-    this.compilers = {};
-    this.code = state.source || "";
+    this.source = state.source || "";
     this._currentDecorations = [];
     this.optEditor = monaco.editor.create(this.domRoot.find(".monaco-placeholder")[0], {
-        value: this.code,
+        value: this.source,
         scrollBeyondLastLine: false,
         language: 'plaintext',
         readOnly: true,
@@ -92,6 +91,7 @@ Opt.prototype.initCallbacks = function () {
     this.eventHub.on('resize', this.resize, this);
     this.container.on('destroy', this.close, this);
     this.eventHub.emit('requestSettings');
+    this.eventHub.emit('findCompilers');
 
     this.container.on('resize', this.resize, this);
     this.container.on('shown', this.resize, this);
@@ -99,8 +99,8 @@ Opt.prototype.initCallbacks = function () {
 
 Opt.prototype.onCompileResult = function (id, compiler, result, lang) {
     if (this._compilerid !== id || !this.isCompilerSupported) return;
-    this.code = result.source;
-    this.optEditor.setValue(this.code);
+    this.source = result.source;
+    this.optEditor.setValue(this.source);
     if (result.hasOptOutput) {
         this.showOptResults(result.optOutput);
     }
@@ -120,7 +120,10 @@ Opt.prototype.setTitle = function () {
 };
 
 Opt.prototype.getDisplayableOpt = function (optResult) {
-    return "**" + optResult.optType + "** - " + optResult.displayString;
+    return {
+        value: "**" + optResult.optType + "** - " + optResult.displayString,
+        isTrusted: false
+    };
 };
 
 Opt.prototype.showOptResults = function (results) {
@@ -159,15 +162,13 @@ Opt.prototype.showOptResults = function (results) {
     this._currentDecorations = this.optEditor.deltaDecorations(this._currentDecorations, opt);
 };
 
-Opt.prototype.onCompiler = function (id, compiler, options, editorid) {
+Opt.prototype.onCompiler = function (id, compiler) {
     if (id === this._compilerid) {
         this._compilerName = compiler ? compiler.name : '';
         this.setTitle();
-        this._editorid = editorid;
-        if (compiler) {
-            this.isCompilerSupported = compiler.supportsOptOutput;
-            if (!this.isCompilerSupported)
-                this.optEditor.setValue("<OPT output is not supported for this compiler>");
+        this.isCompilerSupported = compiler ? compiler.supportsOptOutput : false;
+        if (!this.isCompilerSupported) {
+            this.optEditor.setValue("<OPT output is not supported for this compiler>");
         }
     }
 };
